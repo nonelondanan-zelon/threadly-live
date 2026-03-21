@@ -63,14 +63,14 @@ export default function Navbar() {
           ) : user ? (
             // Logged in — show avatar, email, and logout button
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
+              <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center">
                   <span className="text-white text-xs font-bold">{initials}</span>
                 </div>
                 <span className="text-sm font-medium text-slate-700 hidden sm:block">
                   {user.email}
                 </span>
-              </div>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"

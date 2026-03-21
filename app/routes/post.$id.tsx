@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLoaderData, useFetcher } from "react-router";
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+import type { ClientLoaderFunctionArgs, ClientActionFunctionArgs } from "react-router";
 import { supabase } from "~/lib/supabase";
 import type { Post, Comment } from "~/data/posts";
 import Badge from "~/components/Badge";
@@ -17,7 +17,7 @@ async function saveLike(postId: number, newLiked: boolean) {
 }
 
 // loader fetches the post and its comments from Supabase before the page renders.
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function clientLoader({ params }: ClientLoaderFunctionArgs) {
   const { data: post, error } = await supabase
     .from("posts")
     .select("*")
@@ -38,7 +38,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 // action handles comment submissions and post edits, distinguished by "intent".
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function clientAction({ request, params }: ClientActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
@@ -86,9 +86,9 @@ export function meta() {
 }
 
 export default function PostDetail() {
-  const { post, comments } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
-  const editFetcher = useFetcher<typeof action>();
+  const { post, comments } = useLoaderData<typeof clientLoader>();
+  const fetcher = useFetcher<typeof clientAction>();
+  const editFetcher = useFetcher<typeof clientAction>();
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.upvotes);

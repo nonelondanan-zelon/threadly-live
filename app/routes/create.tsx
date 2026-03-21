@@ -1,8 +1,23 @@
 import { Link, Form, useNavigation, useActionData, redirect } from "react-router";
-import type { ActionFunctionArgs } from "react-router";
+import type { ClientActionFunctionArgs } from "react-router";
 import { supabase } from "~/lib/supabase";
 import { CATEGORIES } from "~/data/posts";
 import Button from "~/components/Button";
+
+// Bouncer: only logged-in users can create posts
+// Also fetches their profile to use their name on the post
+export async function clientLoader() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, username")
+    .eq("id", session.user.id)
+    .single();
+
+  return { user: session.user, profile };
+}
 
 export function meta() {
   return [
@@ -13,7 +28,16 @@ export function meta() {
 
 // action runs on the server when the form is submitted.
 // It reads the form fields, saves to Supabase, then redirects to home.
-export async function action({ request }: ActionFunctionArgs) {
+export async function clientAction({ request }: ClientActionFunctionArgs) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, username")
+    .eq("id", session.user.id)
+    .single();
+
   const formData = await request.formData();
   const title = formData.get("title") as string;
   const tag = formData.get("category") as string;
@@ -23,14 +47,18 @@ export async function action({ request }: ActionFunctionArgs) {
     return { error: "All fields are required." };
   }
 
+  const authorName = profile?.display_name || profile?.username || session.user.email || "Anonymous";
+  const authorInitial = authorName.charAt(0).toUpperCase();
+
   const { error } = await supabase.from("posts").insert({
     title: title.trim(),
     body: body.trim(),
     tag,
-    author: "Anonymous",
-    avatar: "A",
+    author: authorName,
+    avatar: authorInitial,
     community: "r/threadly",
     upvotes: 0,
+    user_id: session.user.id,
   });
 
   if (error) return { error: "Failed to create post: " + error.message };
@@ -39,7 +67,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function CreatePost() {
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 

@@ -1,7 +1,7 @@
-import type { ActionFunctionArgs } from "react-router";
+import type { ClientActionFunctionArgs } from "react-router";
 import { supabase } from "~/lib/supabase";
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function clientAction({ request }: ClientActionFunctionArgs) {
   const formData = await request.formData();
   const type = formData.get("type") as string;   // "post" or "comment"
   const id = formData.get("id") as string;

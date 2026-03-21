@@ -6,7 +6,7 @@ import PostCard from "~/components/PostCard";
 
 // loader runs on the server before this page renders.
 // It fetches all posts from Supabase and returns them.
-export async function loader() {
+export async function clientLoader() {
   const { data, error } = await supabase
     .from("posts")
     .select("*")
@@ -25,7 +25,7 @@ export function meta() {
 }
 
 export default function Home() {
-  const { posts } = useLoaderData<typeof loader>();
+  const { posts } = useLoaderData<typeof clientLoader>();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
