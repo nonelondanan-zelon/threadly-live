@@ -1,13 +1,12 @@
 import { NavLink, Link, useNavigate } from "react-router";
-import { supabase } from "~/lib/supabase";
-import { useAuth } from "~/hooks/useAuth";
+import { useAuthContext } from "~/context/AuthContext";
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuthContext();
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await logout();
     navigate("/");
   }
 

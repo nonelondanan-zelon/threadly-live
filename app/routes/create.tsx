@@ -5,19 +5,13 @@ import { CATEGORIES } from "~/data/posts";
 import Button from "~/components/Button";
 
 // Bouncer: only logged-in users can create posts
-// Also fetches their profile to use their name on the post
 export async function clientLoader() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, username")
-    .eq("id", session.user.id)
-    .single();
-
-  return { user: session.user, profile };
+  return {};
 }
+
+clientLoader.hydrate = true;
 
 export function meta() {
   return [

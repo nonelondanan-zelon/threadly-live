@@ -21,6 +21,8 @@ export async function clientLoader() {
   return { user: session.user, profile, postCount: count ?? 0 };
 }
 
+clientLoader.hydrate = true;
+
 export function meta() {
   return [{ title: "Profile — Threadly" }];
 }

@@ -18,15 +18,11 @@ async function saveLike(postId: number, newLiked: boolean) {
 
 // loader fetches the post and its comments from Supabase before the page renders.
 export async function clientLoader({ params }: ClientLoaderFunctionArgs) {
-  const { data: post, error } = await supabase
+  const { data: post } = await supabase
     .from("posts")
     .select("*")
     .eq("id", params.id)
     .single();
-
-  if (error || !post) {
-    throw new Response("Post not found", { status: 404 });
-  }
 
   const { data: comments } = await supabase
     .from("comments")
@@ -36,6 +32,8 @@ export async function clientLoader({ params }: ClientLoaderFunctionArgs) {
 
   return { post: post as Post, comments: (comments ?? []) as Comment[] };
 }
+
+clientLoader.hydrate = true;
 
 // action handles comment submissions and post edits, distinguished by "intent".
 export async function clientAction({ request, params }: ClientActionFunctionArgs) {

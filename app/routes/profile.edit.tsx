@@ -69,6 +69,8 @@ export async function clientAction({ request }: ClientActionFunctionArgs) {
   return redirect("/profile");
 }
 
+clientLoader.hydrate = true;
+
 export function meta() {
   return [{ title: "Edit Profile — Threadly" }];
 }

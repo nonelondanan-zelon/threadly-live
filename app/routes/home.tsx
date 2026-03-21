@@ -7,15 +7,15 @@ import PostCard from "~/components/PostCard";
 // loader runs on the server before this page renders.
 // It fetches all posts from Supabase and returns them.
 export async function clientLoader() {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("posts")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) throw new Error("Failed to load posts: " + error.message);
-
-  return { posts: data as Post[] };
+  return { posts: (data ?? []) as Post[] };
 }
+
+clientLoader.hydrate = true;
 
 export function meta() {
   return [
