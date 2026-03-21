@@ -18,4 +18,5 @@ export default [
   // Auth pages
   route("login", "routes/login.tsx"),
   route("signup", "routes/signup.tsx"),
+  route("auth/callback", "routes/auth.callback.tsx"),
 ] satisfies RouteConfig;

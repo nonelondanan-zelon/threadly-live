@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLoaderData, useFetcher } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { supabase } from "~/lib/supabase";
@@ -37,10 +37,30 @@ export async function loader({ params }: LoaderFunctionArgs) {
   return { post: post as Post, comments: (comments ?? []) as Comment[] };
 }
 
-// action handles the comment form submission.
-// It saves the new comment to Supabase and React Router re-runs the loader.
+// action handles comment submissions and post edits, distinguished by "intent".
 export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
+  const intent = formData.get("intent") as string;
+
+  if (intent === "edit-post") {
+    const title = formData.get("title") as string;
+    const body = formData.get("body") as string;
+
+    if (!title?.trim() || !body?.trim()) {
+      return { error: "Title and content cannot be empty." };
+    }
+
+    const { error } = await supabase
+      .from("posts")
+      .update({ title: title.trim(), body: body.trim() })
+      .eq("id", params.id);
+
+    if (error) return { error: "Failed to save post: " + error.message };
+
+    return { editSuccess: true };
+  }
+
+  // Default: add comment
   const body = formData.get("body") as string;
   const author = (formData.get("author") as string) || "Anonymous";
 
@@ -68,9 +88,20 @@ export function meta() {
 export default function PostDetail() {
   const { post, comments } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
+  const editFetcher = useFetcher<typeof action>();
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.upvotes);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(post.title);
+  const [editBody, setEditBody] = useState(post.body);
+
+  // Close edit mode once the save succeeds
+  useEffect(() => {
+    if (editFetcher.state === "idle" && editFetcher.data?.editSuccess) {
+      setEditing(false);
+    }
+  }, [editFetcher.state, editFetcher.data]);
 
   function handleLike() {
     const newLiked = !liked;
@@ -112,9 +143,17 @@ export default function PostDetail() {
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 leading-tight mb-6">
-              {post.title}
-            </h1>
+            {editing ? (
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full text-2xl sm:text-3xl font-bold text-slate-800 leading-tight mb-6 px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            ) : (
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 leading-tight mb-6">
+                {editTitle}
+              </h1>
+            )}
 
             {/* Author */}
             <div className="flex items-center gap-3 pb-6 border-b border-slate-100 mb-6">
@@ -128,28 +167,82 @@ export default function PostDetail() {
             </div>
 
             {/* Full post content */}
-            <div className="text-slate-700 leading-relaxed whitespace-pre-line text-base">
-              {post.body}
-            </div>
+            {editing ? (
+              <textarea
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                rows={12}
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y"
+              />
+            ) : (
+              <div className="text-slate-700 leading-relaxed whitespace-pre-line text-base">
+                {editBody}
+              </div>
+            )}
 
-            {/* Like button */}
-            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center gap-3">
-              <button
-                onClick={handleLike}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  liked
-                    ? "bg-violet-100 text-violet-700"
-                    : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-600"
-                }`}
-              >
-                <svg className="w-4 h-4" fill={liked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                </svg>
-                {liked ? "Liked" : "Like"} · {likeCount}
-              </button>
-              <span className="text-slate-400 text-sm">
+            {/* Like + Edit buttons */}
+            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center gap-3 flex-wrap">
+              {!editing && (
+                <button
+                  onClick={handleLike}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    liked
+                      ? "bg-violet-100 text-violet-700"
+                      : "bg-slate-100 text-slate-600 hover:bg-violet-50 hover:text-violet-600"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill={liked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                  </svg>
+                  {liked ? "Liked" : "Like"} · {likeCount}
+                </button>
+              )}
+
+              <span className={`text-slate-400 text-sm ${editing ? "hidden" : ""}`}>
                 {comments.length} {comments.length === 1 ? "comment" : "comments"}
               </span>
+
+              <div className="ml-auto flex items-center gap-2">
+                {editing ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditTitle(post.title);
+                        setEditBody(post.body);
+                        setEditing(false);
+                      }}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <editFetcher.Form method="post">
+                      <input type="hidden" name="intent" value="edit-post" />
+                      <input type="hidden" name="title" value={editTitle} />
+                      <input type="hidden" name="body" value={editBody} />
+                      <button
+                        type="submit"
+                        disabled={editFetcher.state === "submitting"}
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {editFetcher.state === "submitting" ? "Saving..." : "Save changes"}
+                      </button>
+                    </editFetcher.Form>
+                    {editFetcher.data?.error && (
+                      <p className="text-red-500 text-xs">{editFetcher.data.error}</p>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </article>

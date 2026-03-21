@@ -117,7 +117,7 @@ export default function CreatePost() {
                 placeholder="Write your post here. Share your story, tips, or opinion..."
                 rows={10}
                 required
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder:text-slate-400 resize-y"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent placeholder:text-slate-400 text-slate-900 resize-y"
               />
             </div>
 
