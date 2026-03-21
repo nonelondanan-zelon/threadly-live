@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { supabase } from "~/lib/supabase";
 
 export function meta() {
   return [{ title: "Log In — Threadly" }];
@@ -10,20 +11,22 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
-    const users = JSON.parse(localStorage.getItem("threadly_users") || "[]");
-    const user = users.find((u: any) => u.email === email && u.password === password);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (!user) {
-      setError("Incorrect email or password.");
+    setLoading(false);
+
+    if (error) {
+      setError(error.message);
       return;
     }
 
-    localStorage.setItem("threadly_current_user", JSON.stringify({ name: user.name, email: user.email }));
     navigate("/");
   }
 
@@ -70,18 +73,24 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-xl transition-colors"
+            disabled={loading}
+            className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
           >
-            Log in
+            {loading ? "Logging in..." : "Log in"}
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
-          Don't have an account?{" "}
-          <Link to="/signup" className="text-violet-600 font-medium hover:underline">
-            Sign up
+        <div className="flex flex-col items-center gap-2 mt-6">
+          <Link to="/forgot-password" className="text-sm text-violet-600 hover:underline">
+            Forgot your password?
           </Link>
-        </p>
+          <p className="text-sm text-slate-500">
+            Don't have an account?{" "}
+            <Link to="/signup" className="text-violet-600 font-medium hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -1,34 +1,19 @@
-import { useEffect, useState } from "react";
-import { NavLink, Link, useNavigate, useLocation } from "react-router";
-
-interface User {
-  name: string;
-  email: string;
-}
+import { NavLink, Link, useNavigate } from "react-router";
+import { supabase } from "~/lib/supabase";
+import { useAuth } from "~/hooks/useAuth";
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading } = useAuth();
 
-  // Re-check localStorage every time the route changes
-  useEffect(() => {
-    const stored = localStorage.getItem("threadly_current_user");
-    setUser(stored ? JSON.parse(stored) : null);
-  }, [location.pathname]);
-
-  function handleLogout() {
-    localStorage.removeItem("threadly_current_user");
-    setUser(null);
+  async function handleLogout() {
+    await supabase.auth.signOut();
     navigate("/");
   }
 
-  const initials = user?.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : "";
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
@@ -73,15 +58,17 @@ export default function Navbar() {
           </div>
 
           {/* Auth area */}
-          {user ? (
-            // Logged in — show avatar, name, and logout
+          {loading ? (
+            <div className="w-24 h-8 bg-slate-100 rounded-lg animate-pulse" />
+          ) : user ? (
+            // Logged in — show avatar, email, and logout button
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center">
                   <span className="text-white text-xs font-bold">{initials}</span>
                 </div>
                 <span className="text-sm font-medium text-slate-700 hidden sm:block">
-                  {user.name}
+                  {user.email}
                 </span>
               </div>
               <button
