@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLoaderData, useFetcher } from "react-router";
 import type { ClientLoaderFunctionArgs, ClientActionFunctionArgs } from "react-router";
 import { supabase } from "~/lib/supabase";
+import { useAuthContext } from "~/context/AuthContext";
 import type { Post, Comment } from "~/data/posts";
 import Badge from "~/components/Badge";
 import Button from "~/components/Button";
@@ -60,7 +61,7 @@ export async function clientAction({ request, params }: ClientActionFunctionArgs
 
   // Default: add comment
   const body = formData.get("body") as string;
-  const author = (formData.get("author") as string) || "Anonymous";
+  const author = (formData.get("author") as string) || "User";
 
   if (!body?.trim()) {
     return { error: "Comment cannot be empty." };
@@ -90,12 +91,35 @@ export default function PostDetail() {
   const { post, comments } = useLoaderData<typeof clientLoader>();
   const fetcher = useFetcher<typeof clientAction>();
   const editFetcher = useFetcher<typeof clientAction>();
+  const { user } = useAuthContext();
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.upvotes);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(post.title);
   const [editBody, setEditBody] = useState(post.body);
+  const [commentBody, setCommentBody] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  // Fetch the logged-in user's display name from profiles
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        setDisplayName(data?.display_name || user.email?.split("@")[0] || "User");
+      });
+  }, [user]);
+
+  // Clear comment box after successful submit
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.success) {
+      setCommentBody("");
+    }
+  }, [fetcher.state, fetcher.data]);
 
   // Close edit mode once the save succeeds
   useEffect(() => {
@@ -256,29 +280,35 @@ export default function PostDetail() {
 
           {/* Add comment form */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 mb-4">
-            <fetcher.Form method="post" className="flex flex-col gap-3">
-              <input
-                name="author"
-                type="text"
-                placeholder="Your name (optional)"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-900"
-              />
-              <textarea
-                name="body"
-                placeholder="Write a comment..."
-                rows={3}
-                required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
-              />
-              {fetcher.data?.error && (
-                <p className="text-red-500 text-xs">{fetcher.data.error}</p>
-              )}
-              <div className="flex justify-end">
-                <Button type="submit" variant="primary" disabled={isSubmitting}>
-                  {isSubmitting ? "Posting..." : "Post comment"}
-                </Button>
-              </div>
-            </fetcher.Form>
+            {user ? (
+              <fetcher.Form method="post" className="flex flex-col gap-3">
+                <input type="hidden" name="author" value={displayName} />
+                <p className="text-xs text-slate-500">
+                  Commenting as <span className="font-medium text-slate-700">{displayName}</span>
+                </p>
+                <textarea
+                  name="body"
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                  placeholder="Write a comment..."
+                  rows={3}
+                  required
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                />
+                {fetcher.data?.error && (
+                  <p className="text-red-500 text-xs">{fetcher.data.error}</p>
+                )}
+                <div className="flex justify-end">
+                  <Button type="submit" variant="primary" disabled={isSubmitting}>
+                    {isSubmitting ? "Posting..." : "Post comment"}
+                  </Button>
+                </div>
+              </fetcher.Form>
+            ) : (
+              <p className="text-sm text-slate-500 text-center py-2">
+                <Link to="/login" className="text-violet-600 hover:underline font-medium">Log in</Link> to leave a comment.
+              </p>
+            )}
           </div>
 
           {comments.length === 0 ? (
