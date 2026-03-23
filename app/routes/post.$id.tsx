@@ -66,12 +66,15 @@ export async function clientAction({ request, params }: ClientActionFunctionArgs
     return { error: "Comment cannot be empty." };
   }
 
+  const { data: { session } } = await supabase.auth.getSession();
+
   const { error } = await supabase.from("comments").insert({
     post_id: Number(params.id),
     body,
     author,
     avatar: author.charAt(0).toUpperCase(),
     likes: 0,
+    user_id: session?.user?.id ?? null,
   });
 
   if (error) return { error: "Failed to post comment: " + error.message };

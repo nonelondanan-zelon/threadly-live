@@ -21,6 +21,9 @@ export default [
   // "/profile/edit" → Edit profile form (protected)
   route("profile/edit", "routes/profile.edit.tsx"),
 
+  // "/notifications" → Notifications page (protected)
+  route("notifications", "routes/notifications.tsx"),
+
   // Auth pages
   route("login", "routes/login.tsx"),
   route("forgot-password", "routes/forgot-password.tsx"),

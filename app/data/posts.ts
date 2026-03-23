@@ -23,5 +23,17 @@ export interface Post {
   created_at: string;
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;       // post author — who receives it
+  actor_id: string | null; // commenter — who triggered it
+  type: string;          // 'new_comment'
+  post_id: number;
+  comment_id: number | null;
+  message: string;       // e.g. "Alex commented on your post"
+  is_read: boolean;
+  created_at: string;
+}
+
 // Categories for the filter tabs — "All" plus every tag used in the database
 export const CATEGORIES = ["All", "Discussion", "Tips", "Career", "Show HN", "News", "Help"];
