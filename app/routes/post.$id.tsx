@@ -29,7 +29,7 @@ export async function clientLoader({ params }: ClientLoaderFunctionArgs) {
     .from("comments")
     .select("*")
     .eq("post_id", params.id)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   return { post: post as Post, comments: (comments ?? []) as Comment[] };
 }
@@ -47,6 +47,13 @@ export async function clientAction({ request, params }: ClientActionFunctionArgs
 
     if (!title?.trim() || !body?.trim()) {
       return { error: "Title and content cannot be empty." };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: post } = await supabase.from("posts").select("user_id").eq("id", params.id).single();
+
+    if (!session || post?.user_id !== session.user.id) {
+      return { error: "You can only edit your own posts." };
     }
 
     const { error } = await supabase
@@ -69,18 +76,18 @@ export async function clientAction({ request, params }: ClientActionFunctionArgs
 
   const { data: { session } } = await supabase.auth.getSession();
 
-  const { error } = await supabase.from("comments").insert({
+  const { data: newComment, error } = await supabase.from("comments").insert({
     post_id: Number(params.id),
     body,
     author,
     avatar: author.charAt(0).toUpperCase(),
     likes: 0,
     user_id: session?.user?.id ?? null,
-  });
+  }).select().single();
 
   if (error) return { error: "Failed to post comment: " + error.message };
 
-  return { success: true };
+  return { success: true, comment: newComment };
 }
 
 export function meta() {
@@ -115,28 +122,43 @@ export default function PostDetail() {
       });
   }, [user]);
 
-  // Clear comment box after successful submit
+  // When comment submits successfully — add it to the top immediately
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.success) {
+    if (fetcher.state === "idle" && fetcher.data?.success && fetcher.data?.comment) {
+      setComments((prev) => {
+        const exists = prev.some((c) => c.id === fetcher.data!.comment.id);
+        return exists ? prev : [fetcher.data!.comment as Comment, ...prev];
+      });
       setCommentBody("");
     }
   }, [fetcher.state, fetcher.data]);
 
-  // Realtime: keep comments live for this post
+  // Realtime: live updates from other users — no server filter, check post_id client-side
   useEffect(() => {
     const channel = supabase
       .channel(`comments-${post.id}`)
       .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
-        (payload) => setComments((prev) => [...prev, payload.new as Comment])
+        { event: "INSERT", schema: "public", table: "comments" },
+        (payload) => {
+          const c = payload.new as Comment;
+          if (c.post_id !== post.id) return;
+          setComments((prev) => {
+            const exists = prev.some((x) => x.id === c.id);
+            return exists ? prev : [c, ...prev];
+          });
+        }
       )
       .on("postgres_changes",
-        { event: "UPDATE", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
-        (payload) => setComments((prev) => prev.map((c) => c.id === (payload.new as Comment).id ? payload.new as Comment : c))
+        { event: "UPDATE", schema: "public", table: "comments" },
+        (payload) => {
+          const c = payload.new as Comment;
+          if (c.post_id !== post.id) return;
+          setComments((prev) => prev.map((x) => x.id === c.id ? c : x));
+        }
       )
       .on("postgres_changes",
-        { event: "DELETE", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
-        (payload) => setComments((prev) => prev.filter((c) => c.id !== (payload.old as Comment).id))
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload) => setComments((prev) => prev.filter((x) => x.id !== (payload.old as Comment).id))
       )
       .subscribe();
 
@@ -279,15 +301,17 @@ export default function PostDetail() {
                     )}
                   </>
                 ) : (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edit
-                  </button>
+                  user?.id === post.user_id && (
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit
+                    </button>
+                  )
                 )}
               </div>
             </div>

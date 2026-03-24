@@ -10,9 +10,15 @@ export default function CommentCard({ comment }: CommentCardProps) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(comment.likes);
 
-  const date = new Date(comment.created_at).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
+  function timeAgo(dateStr: string) {
+    const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
 
   async function handleLike() {
     const newLiked = !liked;
@@ -34,7 +40,7 @@ export default function CommentCard({ comment }: CommentCardProps) {
         </div>
         <div>
           <p className="font-medium text-slate-800 text-sm">{comment.author}</p>
-          <p className="text-slate-400 text-xs">{date}</p>
+          <p className="text-slate-400 text-xs">{timeAgo(comment.created_at)}</p>
         </div>
       </div>
 

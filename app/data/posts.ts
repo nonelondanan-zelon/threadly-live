@@ -21,6 +21,7 @@ export interface Post {
   tag: string;        // e.g. Discussion, Career, Tips
   upvotes: number;
   created_at: string;
+  user_id: string;    // owner of the post
 }
 
 export interface Notification {
