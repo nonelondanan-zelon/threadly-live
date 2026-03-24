@@ -1,10 +1,11 @@
-import { NavLink, Link, useNavigate } from "react-router";
+import { NavLink, Link, useNavigate, useLocation } from "react-router";
 import { useEffect, useState } from "react";
 import { useAuthContext } from "~/context/AuthContext";
 import { supabase } from "~/lib/supabase";
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading, logout } = useAuthContext();
 
   async function handleLogout() {
@@ -18,27 +19,34 @@ export default function Navbar() {
 
   const [unreadCount, setUnreadCount] = useState(0);
 
+  async function fetchUnread(userId: string) {
+    const { count } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
+    setUnreadCount(count ?? 0);
+  }
+
+  // Re-fetch on every page navigation so clicking a notification updates the badge
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
+    fetchUnread(user.id);
+  }, [user, location.pathname]);
 
-    async function fetchUnread() {
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user!.id)
-        .eq("is_read", false);
-      setUnreadCount(count ?? 0);
-    }
+  // Realtime: handle new incoming notifications
+  useEffect(() => {
+    if (!user) return;
 
-    fetchUnread();
-
-    // Realtime: re-fetch whenever a notification is inserted or updated for this user
     const channel = supabase
       .channel("navbar-notifications")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => fetchUnread()
+        { event: "*", schema: "public", table: "notifications" },
+        (payload: any) => {
+          const row = payload.new ?? payload.old;
+          if (row?.user_id === user!.id) fetchUnread(user!.id);
+        }
       )
       .subscribe();
 

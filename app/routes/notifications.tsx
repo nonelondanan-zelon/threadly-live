@@ -154,13 +154,22 @@ export default function Notifications() {
                   <span className={`w-2.5 h-2.5 rounded-full block ${!n.is_read ? "bg-violet-500" : "bg-slate-200"}`} />
                 </div>
 
-                {/* Message — clicking navigates to post */}
-                <Link to={`/post/${n.post_id}`} className="flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                {/* Message — awaits mark-as-read then navigates */}
+                <button
+                  className="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                  onClick={async () => {
+                    if (!n.is_read) {
+                      setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, is_read: true } : x));
+                      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+                    }
+                    navigate(`/post/${n.post_id}`);
+                  }}
+                >
                   <p className={`text-sm ${!n.is_read ? "font-medium text-slate-800" : "text-slate-600"}`}>
                     {n.message}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">{timeAgo(n.created_at)}</p>
-                </Link>
+                </button>
 
                 {/* Toggle read/unread button */}
                 <button
