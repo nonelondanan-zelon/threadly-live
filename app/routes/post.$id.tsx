@@ -88,7 +88,7 @@ export function meta() {
 }
 
 export default function PostDetail() {
-  const { post, comments } = useLoaderData<typeof clientLoader>();
+  const { post, comments: initialComments } = useLoaderData<typeof clientLoader>();
   const fetcher = useFetcher<typeof clientAction>();
   const editFetcher = useFetcher<typeof clientAction>();
   const { user } = useAuthContext();
@@ -100,6 +100,7 @@ export default function PostDetail() {
   const [editBody, setEditBody] = useState(post.body);
   const [commentBody, setCommentBody] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [comments, setComments] = useState<Comment[]>(initialComments);
 
   // Fetch the logged-in user's display name from profiles
   useEffect(() => {
@@ -120,6 +121,27 @@ export default function PostDetail() {
       setCommentBody("");
     }
   }, [fetcher.state, fetcher.data]);
+
+  // Realtime: keep comments live for this post
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-${post.id}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
+        (payload) => setComments((prev) => [...prev, payload.new as Comment])
+      )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
+        (payload) => setComments((prev) => prev.map((c) => c.id === (payload.new as Comment).id ? payload.new as Comment : c))
+      )
+      .on("postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
+        (payload) => setComments((prev) => prev.filter((c) => c.id !== (payload.old as Comment).id))
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [post.id]);
 
   // Close edit mode once the save succeeds
   useEffect(() => {

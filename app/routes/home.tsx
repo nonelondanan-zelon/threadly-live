@@ -25,7 +25,8 @@ export function meta() {
 }
 
 export default function Home() {
-  const { posts } = useLoaderData<typeof clientLoader>();
+  const { posts: initialPosts } = useLoaderData<typeof clientLoader>();
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
@@ -33,6 +34,24 @@ export default function Home() {
   useEffect(() => {
     const stored = localStorage.getItem("threadly_current_user");
     if (stored) setUser(JSON.parse(stored));
+  }, []);
+
+  // Realtime: keep the post list live without needing a refresh
+  useEffect(() => {
+    const channel = supabase
+      .channel("home-posts")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" },
+        (payload) => setPosts((prev) => [payload.new as Post, ...prev])
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "posts" },
+        (payload) => setPosts((prev) => prev.map((p) => p.id === (payload.new as Post).id ? payload.new as Post : p))
+      )
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "posts" },
+        (payload) => setPosts((prev) => prev.filter((p) => p.id !== (payload.old as Post).id))
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   // Filter posts in the browser based on search and category
