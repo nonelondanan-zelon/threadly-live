@@ -68,14 +68,14 @@ export default function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Hero banner */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-3">
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-800 dark:text-white mb-3">
             {user ? `Welcome back, ${user.name.split(" ")[0]}!` : "Welcome to Threadly"}
           </h1>
-          <p className="text-slate-500 text-lg mb-4 max-w-xl mx-auto">
+          <p className="text-slate-500 dark:text-slate-400 text-lg mb-4 max-w-xl mx-auto">
             A community where developers and designers share what they've learned.
           </p>
 
